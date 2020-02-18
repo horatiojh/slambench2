@@ -21,9 +21,12 @@ if (Boost_FOUND)
 
 
 	IF (LIBYAML_FOUND)
-    	add_library(EUROCMAV EUROCMAV.cpp)
-		target_link_libraries(EUROCMAV slambench-io ${Boost_LIBRARIES} ${LIBYAML_LIBRARY})
-		target_include_directories(EUROCMAV PRIVATE ${Boost_INCLUDE_DIRS}  ${LIBYAML_INCLUDE_DIR})
+    	 add_library(EUROCMAV EUROCMAV.cpp)
+	 target_link_libraries(EUROCMAV slambench-io ${Boost_LIBRARIES} ${LIBYAML_LIBRARY})
+	 target_include_directories(EUROCMAV PRIVATE ${Boost_INCLUDE_DIRS}  ${LIBYAML_INCLUDE_DIR})
+    	 add_library(Aqualoc Aqualoc.cpp)
+	 target_link_libraries(Aqualoc slambench-io ${Boost_LIBRARIES} ${LIBYAML_LIBRARY})
+	 target_include_directories(Aqualoc PRIVATE ${Boost_INCLUDE_DIRS}  ${LIBYAML_INCLUDE_DIR})
 	ENDIF (LIBYAML_FOUND)
 	
 	add_library(SVO SVO.cpp)
@@ -47,7 +50,7 @@ if (Boost_FOUND)
 	add_executable(dataset-generator dataset-generator.cpp)
 	target_link_libraries(dataset-generator TUM ICLNUIM ICL SVO)
 	IF (LIBYAML_FOUND)
-	  target_link_libraries(dataset-generator EUROCMAV)
+	  target_link_libraries(dataset-generator EUROCMAV Aqualoc)
 	ENDIF(LIBYAML_FOUND)
 		
 	

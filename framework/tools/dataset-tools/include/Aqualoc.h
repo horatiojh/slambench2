@@ -50,9 +50,7 @@ private :
 	CameraSensor *grey_sensor =  nullptr;
 	GroundTruthSensor *gt_sensor =  nullptr;
 	IMUSensor *imu_sensor =  nullptr;
-	void AddSensors(SLAMFile &file);
-	bool GetFrame(const std::string &dirname, SLAMFile &file, int frame_no) ;
-	bool AddFrames(const std::string &dirname, SLAMFile &file) ;
+
 
 };
 

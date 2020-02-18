@@ -154,7 +154,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 
     // gotta match timestamp to frame number using aqua_img.csv
-    std::ifstream infile(dataFolder + "/aqua_img.csv");
+   {
     std::string line;
 	boost::smatch match;
 	std::ifstream infile(rootFolder + "/" + "aqua_img.csv");
@@ -175,7 +175,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 		}
 
 	}
-    
+   }
 
     // we then load the frames for the RGB and Grey sensors from either the dist or undist,
     // based on what the user has indicated
@@ -263,7 +263,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 	}
 
-    
+	{
     // Ground truth trajectories (format: frame_id tx ty tz qx qy qz qw)
     // search for the appropriate text file and read it line by line 
     slambench::io::GroundTruthSensor *gtSensor = new slambench::io::GroundTruthSensor(gtDirFolder + "GTSensor");
@@ -320,7 +320,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 
 	}
-
+}
     // cam and IMU translation also exists 
     // look if ground truths match camera 
 
