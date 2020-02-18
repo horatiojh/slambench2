@@ -27,17 +27,5 @@ target_link_libraries(benchmark_loader PRIVATE pthread ${SLAMBENCH_LIBRARIES})
 find_package(Pangolin QUIET)
 find_package(TOON QUIET)
 
-IF(Pangolin_FOUND)
-	set(main_common_libraries     ${SLAMBENCH_LIBRARIES})
-	set(gui_pangolin_libraries     ${main_common_libraries} slambench-ui-pangolin ${Pangolin_LIBRARIES} ${OPENGL_LIBRARIES} pthread)
-	add_executable(pangolin_loader pangolin_loader.cpp)
-	TARGET_INCLUDE_DIRECTORIES(pangolin_loader PUBLIC ${SLAMBENCH_INCLUDE_DIR})
-	TARGET_INCLUDE_DIRECTORIES(pangolin_loader PUBLIC ${Pangolin_INCLUDE_DIR})
-	TARGET_INCLUDE_DIRECTORIES(pangolin_loader PUBLIC ${TOON_INCLUDE_PATHS})
-	target_link_libraries(pangolin_loader PRIVATE ${gui_pangolin_libraries})
-
-
-
-ENDIF(Pangolin_FOUND)
 
 

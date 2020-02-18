@@ -40,6 +40,7 @@
 #include "./include/ICLNUIM.h"
 #include "./include/TUM.h"
 #include "./include/SVO.h"
+#include "./include/Aqualoc.h"
 
 using namespace slambench::io;
 
@@ -98,6 +99,8 @@ public :
 			config->reader = new ICLReader("");
 		} else if (dataset_name == "svo") {
 			config->reader = new SVOReader("");
+		} else if (dataset_name == "aqualoc") {
+			config->reader  = new AqualocReader("");
 		}
 
 		if (config->reader) {

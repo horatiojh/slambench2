@@ -122,9 +122,9 @@ ifneq ("$(wildcard ${BRISK_INCLUDE_DIR})","")
 DEPS_ARGS+= -DBRISK_INCLUDE_PATH=${BRISK_INCLUDE_DIR}
 endif
 
-ifneq ("$(wildcard ${PANGOLIN_DIR})","")
-DEPS_ENV+= Pangolin_DIR=${PANGOLIN_DIR}
-endif
+#ifneq ("$(wildcard ${PANGOLIN_DIR})","")
+#DEPS_ENV+= Pangolin_DIR=${PANGOLIN_DIR}
+#endif
 
 ifneq ("$(wildcard ${EIGEN3_INCLUDE_DIR})","")
 DEPS_ARGS+= -DEIGEN3_INCLUDE_DIR=${EIGEN3_INCLUDE_DIR} -DEIGEN3_VERSION_OK=ON 
