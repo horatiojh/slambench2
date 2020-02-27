@@ -53,44 +53,21 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     // begin by creating a new SLAM file
     slambench::io::SLAMFile *slamfile = new slambench::io::SLAMFile();
 
-    std::cerr << " New SLAM File Created" << std::endl;
-
-    // the EUROCMAV file checks for sensors via the directories, but we do it manually for now
-    std::vector<std::string> sensor_directories;
-
-    std::cerr << " Creating sensor directories " << std::endl;
-
-
-    // QUESTION
-    // what will the input be? because we need to access the folder with the YAML files,
-    // and also gotta go into the specific folder 
 	std::string rootFolder = this->aqualocInputDir;
-
-    std::cerr << " Setting input dir " << std::endl;
-
+    std::string dataFolder = this->aqualocDatasetFolder;
 
     // begin by reading the YAML file for the config settings
 	std::string camCalibFileName = rootFolder + "/camchain-calib_aqualoc.yaml";
 	std::string imuCalibFileName = rootFolder + "/MPU9250_imu_param.yaml";
-    std::cout << camCalibFileName << std::endl;
-    std::cout << imuCalibFileName << std::endl;
     YAML::Node cam_calib = YAML::LoadFile(camCalibFileName.c_str());
     YAML::Node imu_calib = YAML::LoadFile(imuCalibFileName.c_str());
-
-    std::cerr << " Successfully loaded YAML file " << std::endl;
-    //std::cerr << " Test reading YAML File " << std::endl;
-    //std::cout << cam_calib["cam0"]["resolution"][0] << std::endl;
-    
-    
     
     // individual folders don't have YAML files, so the format will be a little different from EUROCMAV
     // we read through the csv files in the selected folder/dataset
     // impt to note that the ground truth trajectories are in a separate folder though
-    std::vector<std::string> infoDirectories;
     std::string gtDirFolder = rootFolder + "/aqualoc_gt_trajectories";
 
-    // get the name that the user inputs and go into that folder
-    std::string dataFolder = this->aqualocDatasetFolder;
+
     // initialise the required sensors
 
     // Grey sensor 
@@ -106,17 +83,11 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     greySensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
     greySensor->Height = cam_calib["cam0"]["resolution"][1].as<int>();
 
-    std::cerr << " Successfully read resolution " << std::endl;
-    std::cerr << greySensor->Width << std::endl;
-
-
     //intrinsics: [413.32595366566017, 413.70198739483686, 305.9507483284928, 259.4439948946375]
     greySensor->Intrinsics[0] = cam_calib["cam0"]["intrinsics"][0].as<float>() / greySensor->Width;
     greySensor->Intrinsics[1] = cam_calib["cam0"]["intrinsics"][1].as<float>() / greySensor->Height;
     greySensor->Intrinsics[2] = cam_calib["cam0"]["intrinsics"][2].as<float>() / greySensor->Width;
     greySensor->Intrinsics[3] = cam_calib["cam0"]["intrinsics"][3].as<float>() / greySensor->Height;
-
-    std::cerr << " Successfully updated intrinsics " << std::endl;
 
     // now we check if the input file is distorted based on user input, then determine 
     if (this->dist) {
@@ -129,7 +100,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
         greySensor->EquidistantDistortion[3] = cam_calib["cam0"]["distortion_coeffs"][3].as<float>();
         greySensor->EquidistantDistortion[4] = 0;
 
-        std::cerr << " Successfully updated distortion intrinsics " << std::endl;
+
 
     } else if (!this->dist){
         std::cerr << " Distortion Type: None " << std::endl;
@@ -140,10 +111,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     }
 
     // here we create an RGB equivalent sensor (with the same settings as the grey sensor)
-
-    std::cerr << " Creating RGB sensor " << std::endl;
     
-
     slambench::io::CameraSensor *rgbSensor = new slambench::io::CameraSensor(dataFolder + "RgbSensor");
     rgbSensor->Index = slamfile->Sensors.size();
     //rgbSensor->Rate = 
@@ -151,21 +119,13 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     //rgbSensor->FrameFormat = 
     //rgbSensor->PixelFormat = slambench::io::pixelformat::G_I_8;
     
-    //  resolution: [640, 512]
     rgbSensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
     rgbSensor->Height = cam_calib["cam0"]["resolution"][1].as<int>();
-
-    std::cerr << " Successfully updated RGB Resolution " << std::endl;
-
-
-
-    //intrinsics: [413.32595366566017, 413.70198739483686, 305.9507483284928, 259.4439948946375]
     rgbSensor->Intrinsics[0] = cam_calib["cam0"]["intrinsics"][0].as<float>() / rgbSensor->Width;
     rgbSensor->Intrinsics[1] = cam_calib["cam0"]["intrinsics"][1].as<float>() / rgbSensor->Height;
     rgbSensor->Intrinsics[2] = cam_calib["cam0"]["intrinsics"][2].as<float>() / rgbSensor->Width;
     rgbSensor->Intrinsics[3] = cam_calib["cam0"]["intrinsics"][3].as<float>() / rgbSensor->Height;
 
-    std::cerr << " Successfully updated RGB Intrinsics " << std::endl;
 
     if (this->dist) {
         rgbSensor->DistortionType = slambench::io::CameraSensor::distortion_type_t::Equidistant;
@@ -183,14 +143,14 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
         exit(1);
     }
 
-    std::cerr << " Successfully created RGB Sensor " << std::endl;
+    // std::cerr << " Successfully created RGB Sensor " << std::endl;
 
     // TODO
     // gotta match timestamp to frame number using aqua_img.csv
     // store the values for the timestamp and image name in a map
     // create the map
     std::map <std::string, std::string> timestampMap;
-    std::cerr << " Reading Timestamp File " << std::endl;
+    // std::cerr << " Reading Timestamp File " << std::endl;
    {
     std::string line;
 	boost::smatch match;
@@ -235,7 +195,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     // we then load the frames for the RGB and Grey sensors from either the dist or undist,
     // based on what the user has indicated
     std::string imgFolder = this->dist ? (dataFolder + "/undist_images") : (dataFolder + "/dist_images");
-    std::cerr << " The IMG Folder used is " + imgFolder << std::endl;
+    // std::cerr << " The IMG Folder used is " + imgFolder << std::endl;
     DIR *dir = opendir((imgFolder).c_str());
     dirent *pdir;
     // iterate through the directory
@@ -296,7 +256,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     std::string line;
 
 	boost::smatch match;
-    std::cerr << " Reading IMU Values from filename: " + dataFolder + "/" + "aqua_imu.csv" << std::endl;
+    // std::cerr << " Reading IMU Values from filename: " + dataFolder + "/" + "aqua_imu.csv" << std::endl;
 	std::ifstream infile(dataFolder + "/" + "aqua_imu.csv");
 
 	while (std::getline(infile, line)){
@@ -338,7 +298,37 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 			slamfile->AddFrame(IMUFrame);
 
 		} else {
-			// std::cerr << "Unknown line:" << line << std::endl;
+			
+            std::cerr << "Unknown line:" << line << std::endl;
+            // QUESTION
+            // unknown line mainly happens because of data representation in the csv, where they use scientific notation E-05 etc.
+            // if it's an unknown line, does it affect the generation of the SLAM file and do 
+            // we have to give it a mock value? If so, we can use the previous line or give it a dummy value
+            // but the error still occurs 
+
+			// float wx = 0;
+			// float wy = 0;
+			// float wz = 0;
+
+			// float ax =  0;
+			// float ay =  0;
+			// float az =  0;
+
+			// slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+			// IMUFrame->FrameSensor = imuSensor;
+			// IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+
+			// ((float*)IMUFrame->Data)[0] = wx;
+			// ((float*)IMUFrame->Data)[1] = wy;
+			// ((float*)IMUFrame->Data)[2] = wz;
+
+			// ((float*)IMUFrame->Data)[3] = ax;
+			// ((float*)IMUFrame->Data)[4] = ay;
+			// ((float*)IMUFrame->Data)[5] = az;
+
+			// slamfile->AddFrame(IMUFrame);
+            
+
 		}
 
 	}
@@ -403,7 +393,30 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
             // std::cerr << "Frame successfully added" << std::endl;
 
 		} else {
-			// std::cerr << "Unknown line:" << line << std::endl;
+			std::cerr << "Unknown line:" << line << std::endl;
+            // float tx = 0;
+			// float ty = 0;
+			// float tz = 0;
+
+			// float qx =  0;
+			// float qy =  0;
+			// float qz =  0;
+            // float qw =  0;
+
+            // // QUESTION: I transformed the data in the same way as EUROCMAV, is this correct?
+			// Eigen::Matrix3f rotationMat = Eigen::Quaternionf(qw,qx,qy,qz).toRotationMatrix();
+			// Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+			// pose.block(0,0,3,3) = rotationMat;
+			// pose.block(0,3,3,1) << tx , ty , tz;
+
+
+			// slambench::io::SLAMInMemoryFrame *gtFrame = new slambench::io::SLAMInMemoryFrame();
+			// gtFrame->FrameSensor = gtSensor;
+			// gtFrame->Data = malloc(gtSensor->GetFrameSize(gtFrame));
+
+			// memcpy(gtFrame->Data,pose.data(),gtSensor->GetFrameSize(gtFrame));
+
+			// slamfile->AddFrame(gtFrame);
 		}
 
 
