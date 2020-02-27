@@ -9,7 +9,8 @@
 
 FIND_PATH(LIBYAML_INCLUDE_DIR NAMES yaml.h 
 	HINTS 
-	/usr/include/yaml-cpp/)
+	/usr/include/yaml-cpp/
+	/usr/local/Cellar/yaml-cpp/0.6.2_1/include/yaml-cpp/)
 FIND_LIBRARY(LIBYAML_LIBRARY NAMES yaml-cpp
 	HINTS
 	/usr/lib64)

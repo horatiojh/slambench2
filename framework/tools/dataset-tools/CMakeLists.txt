@@ -7,9 +7,9 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=unused-parameter -Wno-error=u
 
 
 find_package(Boost 1.54 REQUIRED COMPONENTS system filesystem program_options regex)
-IF(NOT APPLE)
+#IF(NOT APPLE)
   find_package(LIBYAML REQUIRED)
-ENDIF(NOT APPLE)
+#ENDIF(NOT APPLE)
 
 add_executable(io-readply io-readply.cpp)
 target_link_libraries(io-readply slambench-io)

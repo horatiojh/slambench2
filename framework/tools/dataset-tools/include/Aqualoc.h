@@ -34,8 +34,8 @@ public :
 	bool positive_focal = false;
 
 	AqualocReader (std::string name) : DatasetReader(name) {
-		this->addParameter(TypedParameter<std::string>("i",     "input-directory",       "path of the Aqualoc dataset directory",   &this->aqualocInputDir, NULL));
-		this->addParameter(TypedParameter<std::string>("i",     "input-dataset",       "the path of the specific Aqualoc dataset to use",   &this->aqualocDatasetFolder, NULL));
+		this->addParameter(TypedParameter<std::string>("idir",     "input-directory",       "path of the Aqualoc dataset directory",   &this->aqualocInputDir, NULL));
+		this->addParameter(TypedParameter<std::string>("idata",     "input-dataset",       "the path of the specific Aqualoc dataset to use",   &this->aqualocDatasetFolder, NULL));
 		this->addParameter(TypedParameter<bool>("depth",     "depth",       "set to true or false to specify if the DEPTH stream need to be include in the slam file.",   &this->depth, NULL));
 		this->addParameter(TypedParameter<bool>("gt",     "gt",       "set to true or false to specify if the GROUNDTRUTH POSE stream need to be include in the slam file.",   &this->gt, NULL));    
 		this->addParameter(TypedParameter<bool>("imu",     "imu",       "include text about IMU.",   &this->imu, NULL));
