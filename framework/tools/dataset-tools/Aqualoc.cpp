@@ -196,21 +196,28 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     // based on what the user has indicated
     std::string imgFolder = this->dist ? (dataFolder + "/undist_images") : (dataFolder + "/dist_images");
     // std::cerr << " The IMG Folder used is " + imgFolder << std::endl;
-    DIR *dir = opendir((imgFolder).c_str());
-    dirent *pdir;
-    // iterate through the directory
-    while((pdir = readdir(dir)) != nullptr) {  
+    // DIR *dir = opendir((imgFolder).c_str());
+    // dirent *pdir;
+
+    // iterate through the map 
+    std::map<std::string, std::string>::iterator it = timestampMap.begin();
+
+    while(it != timestampMap.end()) {  
 
         
         // Add the original Grey Image
 
         slambench::io::ImageFileFrame *greyFrame = new slambench::io::ImageFileFrame();
         greyFrame->FrameSensor = greySensor;
-        greyFrame->Filename = imgFolder + pdir->d_name;
+        greyFrame->Filename = imgFolder + it->first;
+        std::cerr << " The Filename is " + it->first << std::endl;
 
         // lookup in the map for timestamp value based on the filename
-        std::string imgFilename = pdir->d_name;
-        std::string imgTimestamp = timestampMap.find(imgFilename) -> second;
+        // std::string imgFilename = pdir->d_name;
+
+
+        // TODO: do an if statement to catch if it finds the image filename timestamp
+        std::string imgTimestamp = it->second;
         // std::cerr << " The Timestamp value is " + imgTimestamp << std::endl;
 
         uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
@@ -222,32 +229,34 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
         slamfile->AddFrame(greyFrame);
 
+        it++;
+
         // Add the clone RGB, code is the same as the grey sensor above
         // QUESTION: would it be better to just create the grey sensor then duplicate with something like
         // slambench::io::ImageFileFrame *rgbFrame = greyFrame;
         // slamfile->AddFrame(rgbFrame);
         // since all the info is identical?
 
-        if (this->rgb) {
+        // if (this->rgb) {
             
-            slambench::io::ImageFileFrame *rgbFrame = new slambench::io::ImageFileFrame();
-            rgbFrame->FrameSensor = rgbSensor;
-            rgbFrame->Filename = imgFolder + pdir->d_name;
+        //     slambench::io::ImageFileFrame *rgbFrame = new slambench::io::ImageFileFrame();
+        //     rgbFrame->FrameSensor = rgbSensor;
+        //     rgbFrame->Filename = imgFolder + pdir->d_name;
 
-            std::string imgFilename = pdir->d_name;
-            std::string imgTimestamp = timestampMap.find(imgFilename) -> second;
-            // std::cerr << " The Timestamp value is " + imgTimestamp << std::endl;
+        //     std::string imgFilename = pdir->d_name;
+        //     std::string imgTimestamp = timestampMap.find(imgFilename) -> second;
+        //     // std::cerr << " The Timestamp value is " + imgTimestamp << std::endl;
 
-            uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
-            int timestampS  = timestamp / 1000000000;
-            int timestampNS = timestamp % 1000000000;
+        //     uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
+        //     int timestampS  = timestamp / 1000000000;
+        //     int timestampNS = timestamp % 1000000000;
 
-            rgbFrame->Timestamp.S  = timestampS;
-            rgbFrame->Timestamp.Ns = timestampNS;
+        //     rgbFrame->Timestamp.S  = timestampS;
+        //     rgbFrame->Timestamp.Ns = timestampNS;
 
-            // rgbFrame->Timestamp.Ns = timestamp % 1000000000;
-            slamfile->AddFrame(rgbFrame);
-        }
+        //     // rgbFrame->Timestamp.Ns = timestamp % 1000000000;
+        //     slamfile->AddFrame(rgbFrame);
+        // }
     
     }
 

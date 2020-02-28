@@ -332,7 +332,7 @@ void* ImageFileFrame::LoadFile() {
 	
 	if(ext == "png") return LoadPng();
 	else if(ext == "pgm") return LoadPbm();
-	else throw std::logic_error("Unrecognized file type");
+	else throw std::logic_error("Unrecognized file type: " + Filename);
 }
 
 void* ImageFileFrame::LoadPbm() {
