@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <dirent.h>
 #include <cstring>
+#include <cmath>
 
 #include <vector>
 #include <string>
@@ -44,6 +45,18 @@
 using namespace slambench::io ;
 // work with the generateslam file
 // create an IMU sensor, grey sensor, and GT sensor, and mock RGB sensor 
+
+float FixFileInput (std::string input) {
+    boost::smatch match;
+    if (boost::regex_match(input,match,boost::regex("^([-0-9.]+)e-0([0-9]+)$"))) {
+
+        float value = std::stof(match[1]);
+        float divisor = std::stof(match[2]);
+        return (value/(pow(10, divisor)));
+    } else {
+        return std::stof(input);
+    }
+}
 
 SLAMFile* AqualocReader::GenerateSLAMFile () {
 
@@ -77,7 +90,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     //greySensor->Rate = 
     greySensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
     //greySensor->FrameFormat = 
-    //greySensor->PixelFormat = slambench::io::pixelformat::G_I_8;
+    greySensor->PixelFormat = slambench::io::pixelformat::G_I_8;
     
     //  resolution: [640, 512]
     greySensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
@@ -117,7 +130,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     //rgbSensor->Rate = 
     rgbSensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
     //rgbSensor->FrameFormat = 
-    //rgbSensor->PixelFormat = slambench::io::pixelformat::G_I_8;
+    rgbSensor->PixelFormat = slambench::io::pixelformat::G_I_8;
     
     rgbSensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
     rgbSensor->Height = cam_calib["cam0"]["resolution"][1].as<int>();
@@ -209,8 +222,8 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
         slambench::io::ImageFileFrame *greyFrame = new slambench::io::ImageFileFrame();
         greyFrame->FrameSensor = greySensor;
-        greyFrame->Filename = imgFolder + it->first;
-        std::cerr << " The Filename is " + it->first << std::endl;
+        greyFrame->Filename = imgFolder + "/" + it->first;
+        // std::cerr << " The Filename is " + greyFrame->Filename << std::endl;
 
         // lookup in the map for timestamp value based on the filename
         // std::string imgFilename = pdir->d_name;
@@ -306,38 +319,45 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 			slamfile->AddFrame(IMUFrame);
 
-		} else {
-			
-            std::cerr << "Unknown line:" << line << std::endl;
-            // QUESTION
-            // unknown line mainly happens because of data representation in the csv, where they use scientific notation E-05 etc.
-            // if it's an unknown line, does it affect the generation of the SLAM file and do 
-            // we have to give it a mock value? If so, we can use the previous line or give it a dummy value
-            // but the error still occurs 
+		} else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+)$"))) {
 
-			// float wx = 0;
-			// float wy = 0;
-			// float wz = 0;
+            // std::cerr << "Caught the regex here: " << line << std::endl;
 
-			// float ax =  0;
-			// float ay =  0;
-			// float az =  0;
+            uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+			int timestampS  = timestamp / 1000000000;
+			int timestampNS = timestamp % 1000000000;
 
-			// slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
-			// IMUFrame->FrameSensor = imuSensor;
-			// IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+			float wx = FixFileInput(match[2]) ;  
+			float wy = FixFileInput(match[3]) ;  
+			float wz = FixFileInput(match[4]) ;  
 
-			// ((float*)IMUFrame->Data)[0] = wx;
-			// ((float*)IMUFrame->Data)[1] = wy;
-			// ((float*)IMUFrame->Data)[2] = wz;
-
-			// ((float*)IMUFrame->Data)[3] = ax;
-			// ((float*)IMUFrame->Data)[4] = ay;
-			// ((float*)IMUFrame->Data)[5] = az;
-
-			// slamfile->AddFrame(IMUFrame);
+			float ax =  FixFileInput(match[5]); 
+			float ay =  FixFileInput(match[6]); 
+			float az =  FixFileInput(match[7]); 
             
+            // std::cerr << "Replaced it with: " << wx << " " << wy << " " << wz << " " << ax << " " << ay << " " << az << std::endl;
 
+
+			slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+			IMUFrame->FrameSensor = imuSensor;
+			IMUFrame->Timestamp.S  = timestampS;
+			IMUFrame->Timestamp.Ns = timestampNS;
+			IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+
+			((float*)IMUFrame->Data)[0] = wx;
+			((float*)IMUFrame->Data)[1] = wy;
+			((float*)IMUFrame->Data)[2] = wz;
+
+			((float*)IMUFrame->Data)[3] = ax;
+			((float*)IMUFrame->Data)[4] = ay;
+			((float*)IMUFrame->Data)[5] = az;
+
+			slamfile->AddFrame(IMUFrame);
+
+
+
+        } else {
+            std::cerr << "Unknown line:" << line << std::endl;
 		}
 
 	}
@@ -401,31 +421,34 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
             // std::cerr << "Frame successfully added" << std::endl;
 
-		} else {
+		} else if (boost::regex_match(line,match,boost::regex("^([0-9.]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+)$"))){
+            
+            float tx = FixFileInput(match[2]); 
+			float ty = FixFileInput(match[3]); 
+			float tz = FixFileInput(match[4]); 
+
+			float qx =  FixFileInput(match[5]);  
+			float qy =  FixFileInput(match[6]);  
+			float qz =  FixFileInput(match[7]);  
+            float qw =  FixFileInput(match[8]);  
+
+            // QUESTION: I transformed the data in the same way as EUROCMAV, is this correct?
+			Eigen::Matrix3f rotationMat = Eigen::Quaternionf(qw,qx,qy,qz).toRotationMatrix();
+			Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
+			pose.block(0,0,3,3) = rotationMat;
+			pose.block(0,3,3,1) << tx , ty , tz;
+
+
+			slambench::io::SLAMInMemoryFrame *gtFrame = new slambench::io::SLAMInMemoryFrame();
+			gtFrame->FrameSensor = gtSensor;
+			gtFrame->Data = malloc(gtSensor->GetFrameSize(gtFrame));
+
+			memcpy(gtFrame->Data,pose.data(),gtSensor->GetFrameSize(gtFrame));
+
+			slamfile->AddFrame(gtFrame);
+
+        } else {
 			std::cerr << "Unknown line:" << line << std::endl;
-            // float tx = 0;
-			// float ty = 0;
-			// float tz = 0;
-
-			// float qx =  0;
-			// float qy =  0;
-			// float qz =  0;
-            // float qw =  0;
-
-            // // QUESTION: I transformed the data in the same way as EUROCMAV, is this correct?
-			// Eigen::Matrix3f rotationMat = Eigen::Quaternionf(qw,qx,qy,qz).toRotationMatrix();
-			// Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
-			// pose.block(0,0,3,3) = rotationMat;
-			// pose.block(0,3,3,1) << tx , ty , tz;
-
-
-			// slambench::io::SLAMInMemoryFrame *gtFrame = new slambench::io::SLAMInMemoryFrame();
-			// gtFrame->FrameSensor = gtSensor;
-			// gtFrame->Data = malloc(gtSensor->GetFrameSize(gtFrame));
-
-			// memcpy(gtFrame->Data,pose.data(),gtSensor->GetFrameSize(gtFrame));
-
-			// slamfile->AddFrame(gtFrame);
 		}
 
 
