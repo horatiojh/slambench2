@@ -86,7 +86,6 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     // Grey sensor 
     slambench::io::CameraSensor *greySensor = new slambench::io::CameraSensor(dataFolder + "GreySensor");
 
-    greySensor->Index = slamfile->Sensors.size();
     //greySensor->Rate = 
     greySensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
     //greySensor->FrameFormat = 
@@ -122,11 +121,13 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
         std::cerr << "Unsupported distortion type for Aqualoc." << std::endl;
         exit(1);
     }
+    greySensor->Index = slamfile->Sensors.size();
+    slamfile->Sensors.AddSensor(greySensor);
 
     // here we create an RGB equivalent sensor (with the same settings as the grey sensor)
     
     slambench::io::CameraSensor *rgbSensor = new slambench::io::CameraSensor(dataFolder + "RgbSensor");
-    rgbSensor->Index = slamfile->Sensors.size();
+
     //rgbSensor->Rate = 
     rgbSensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
     //rgbSensor->FrameFormat = 
@@ -155,6 +156,8 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
         std::cerr << "Unsupported distortion type for Aqualoc." << std::endl;
         exit(1);
     }
+    rgbSensor->Index = slamfile->Sensors.size();
+    slamfile->Sensors.AddSensor(rgbSensor);
 
     // std::cerr << " Successfully created RGB Sensor " << std::endl;
 
@@ -361,6 +364,9 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 		}
 
 	}
+	imuSensor->Index = slamfile->Sensors.size();
+    slamfile->Sensors.AddSensor(imuSensor);
+
 
     // std::cerr << "Successfully read IMU Sensor Values" << std::endl;
 
@@ -453,7 +459,10 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 
 	}
-}
+
+    gtSensor->Index = slamfile->Sensors.size();
+    slamfile->Sensors.AddSensor(gtSensor);
+	}
 
     std::cerr << " Successfully created SLAMFile " << std::endl;
 	
