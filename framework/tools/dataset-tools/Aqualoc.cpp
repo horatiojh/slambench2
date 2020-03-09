@@ -58,6 +58,25 @@ float FixFileInput (std::string input) {
     }
 }
 
+std::string GenerateFrameName (std::string input) {
+
+    int len = (int)input.length();
+
+    std::string zeroes = "";
+
+    if (len < 6) {
+        // find the number of zeroes to append to the front 
+        for (int i = 0; i < (6-len); i++) {
+            zeroes.append("0");
+        }
+    }
+    
+    std::string editedNum = zeroes + input;
+    std::string output = "frame" + editedNum + ".png";
+    // std::cerr << output << std::endl;
+    return output;
+}
+
 SLAMFile* AqualocReader::GenerateSLAMFile () {
 
     // test print
@@ -84,7 +103,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     // initialise the required sensors
 
     // Grey sensor 
-    slambench::io::CameraSensor *greySensor = new slambench::io::CameraSensor(dataFolder + "GreySensor");
+    slambench::io::CameraSensor *greySensor = new slambench::io::CameraSensor("Grey");
 
     //greySensor->Rate = 
     greySensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
@@ -126,12 +145,12 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
     // here we create an RGB equivalent sensor (with the same settings as the grey sensor)
     
-    slambench::io::CameraSensor *rgbSensor = new slambench::io::CameraSensor(dataFolder + "RgbSensor");
+    slambench::io::CameraSensor *rgbSensor = new slambench::io::CameraSensor("RGB");
 
     //rgbSensor->Rate = 
     rgbSensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
     //rgbSensor->FrameFormat = 
-    rgbSensor->PixelFormat = slambench::io::pixelformat::G_I_8;
+    rgbSensor->PixelFormat = slambench::io::pixelformat::RGB_III_888;
     
     rgbSensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
     rgbSensor->Height = cam_calib["cam0"]["resolution"][1].as<int>();
@@ -165,6 +184,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
     // gotta match timestamp to frame number using aqua_img.csv
     // store the values for the timestamp and image name in a map
     // create the map
+    // timestamp is in NS
     std::map <std::string, std::string> timestampMap;
     // std::cerr << " Reading Timestamp File " << std::endl;
    {
@@ -223,19 +243,12 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
         
         // Add the original Grey Image
 
+        // std::cerr << " Adding Grey Frame " << std::endl;
+
         slambench::io::ImageFileFrame *greyFrame = new slambench::io::ImageFileFrame();
         greyFrame->FrameSensor = greySensor;
         greyFrame->Filename = imgFolder + "/" + it->first;
-        // std::cerr << " The Filename is " + greyFrame->Filename << std::endl;
-
-        // lookup in the map for timestamp value based on the filename
-        // std::string imgFilename = pdir->d_name;
-
-
-        // TODO: do an if statement to catch if it finds the image filename timestamp
         std::string imgTimestamp = it->second;
-        // std::cerr << " The Timestamp value is " + imgTimestamp << std::endl;
-
         uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
 		int timestampS  = timestamp / 1000000000;
 		int timestampNS = timestamp % 1000000000;
@@ -245,36 +258,32 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
         slamfile->AddFrame(greyFrame);
 
-        it++;
+        
 
         // Add the clone RGB, code is the same as the grey sensor above
-        // QUESTION: would it be better to just create the grey sensor then duplicate with something like
-        // slambench::io::ImageFileFrame *rgbFrame = greyFrame;
-        // slamfile->AddFrame(rgbFrame);
-        // since all the info is identical?
 
-        // if (this->rgb) {
+        if (this->rgb) {
+
+            // std::cerr << " Adding RGB Frame " << std::endl;
             
-        //     slambench::io::ImageFileFrame *rgbFrame = new slambench::io::ImageFileFrame();
-        //     rgbFrame->FrameSensor = rgbSensor;
-        //     rgbFrame->Filename = imgFolder + pdir->d_name;
+            slambench::io::ImageFileFrame *rgbFrame = new slambench::io::ImageFileFrame();
+            rgbFrame->FrameSensor = rgbSensor;
+            rgbFrame->Filename = imgFolder + "/" + it->first;
+            std::string imgTimestamp = it->second;
+            uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
+            int timestampS  = timestamp / 1000000000;
+            int timestampNS = timestamp % 1000000000;
 
-        //     std::string imgFilename = pdir->d_name;
-        //     std::string imgTimestamp = timestampMap.find(imgFilename) -> second;
-        //     // std::cerr << " The Timestamp value is " + imgTimestamp << std::endl;
+            rgbFrame->Timestamp.S  = timestampS;
+            rgbFrame->Timestamp.Ns = timestampNS;
 
-        //     uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
-        //     int timestampS  = timestamp / 1000000000;
-        //     int timestampNS = timestamp % 1000000000;
-
-        //     rgbFrame->Timestamp.S  = timestampS;
-        //     rgbFrame->Timestamp.Ns = timestampNS;
-
-        //     // rgbFrame->Timestamp.Ns = timestamp % 1000000000;
-        //     slamfile->AddFrame(rgbFrame);
-        // }
+            slamfile->AddFrame(rgbFrame);
+        }
+        it++;
     
     }
+
+
 
     slambench::io::IMUSensor *imuSensor = new slambench::io::IMUSensor(dataFolder + "IMUSensor");
 
@@ -395,11 +404,17 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 	while (std::getline(inFile, line)){
 
-		if (boost::regex_match(line,match,boost::regex("^([0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+)$"))) {
+		if (boost::regex_match(line,match,boost::regex("^([0-9]+).0 ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+) ([-]?[0-9.]+)$"))) {
 
-            // this data does not have a timestamp, only has frame ID. Should I be using the first column as timestamp?
-            // it comes in 0.0, 0.5, 1.0 etc..
-            // uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+            // The first parameter is the frame number, so we have to find the timestamp via this information 
+            
+            std::string frameNumber = std::string(match[1]);
+            std::string modifiedFrame = GenerateFrameName(frameNumber);
+            std::string time = timestampMap.find(modifiedFrame)->second; 
+            uint64_t timestamp = strtol(time.c_str(), nullptr, 10);
+            
+            int timestampS  = timestamp / 1000000000;
+			int timestampNS = timestamp % 1000000000;
 
 			float tx = std::stof(match[2]); 
 			float ty = std::stof(match[3]); 
@@ -420,6 +435,8 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 			slambench::io::SLAMInMemoryFrame *gtFrame = new slambench::io::SLAMInMemoryFrame();
 			gtFrame->FrameSensor = gtSensor;
 			gtFrame->Data = malloc(gtSensor->GetFrameSize(gtFrame));
+            gtFrame->Timestamp.S = timestampS;
+			gtFrame->Timestamp.Ns = timestampNS;
 
 			memcpy(gtFrame->Data,pose.data(),gtSensor->GetFrameSize(gtFrame));
 
@@ -427,8 +444,17 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
             // std::cerr << "Frame successfully added" << std::endl;
 
-		} else if (boost::regex_match(line,match,boost::regex("^([0-9.]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+)$"))){
+		} else if (boost::regex_match(line,match,boost::regex("^([0-9]+).0 ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+) ([-]?[0-9.e-]+)$"))){
             
+            std::string frameNumber = std::string(match[1]);
+            // std::cerr << "Frame Number is " + frameNumber << std::endl;
+            std::string modifiedFrame = GenerateFrameName(frameNumber);
+            std::string time = timestampMap.find(modifiedFrame)->second; 
+            uint64_t timestamp = strtol(time.c_str(), nullptr, 10);
+            
+            int timestampS  = timestamp / 1000000000;
+			int timestampNS = timestamp % 1000000000;
+
             float tx = FixFileInput(match[2]); 
 			float ty = FixFileInput(match[3]); 
 			float tz = FixFileInput(match[4]); 
@@ -448,6 +474,8 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 			slambench::io::SLAMInMemoryFrame *gtFrame = new slambench::io::SLAMInMemoryFrame();
 			gtFrame->FrameSensor = gtSensor;
 			gtFrame->Data = malloc(gtSensor->GetFrameSize(gtFrame));
+            gtFrame->Timestamp.S = timestampS;
+			gtFrame->Timestamp.Ns = timestampNS;
 
 			memcpy(gtFrame->Data,pose.data(),gtSensor->GetFrameSize(gtFrame));
 
