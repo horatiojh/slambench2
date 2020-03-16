@@ -244,10 +244,11 @@ datasets :
 	@${PRINTF} "If you do not find datasets in this list, you can use make to download them (make datasetslist). \n"
 	@${PRINTF} "Here is a list of the datasets available.\n"
 	@${PRINTF} "If you are using one of those dataset, \033[1;31mplease refer to their respective publications\033[0m:\n"
-	@${PRINTF} "   - TUM RGB-D SLAM dataset [Sturm et al, IROS'12]: https://vision.in.tum.de/data/datasets/rgbd-dataset\n"
 	@${PRINTF} "   - ICL-NUIM dataset [Handa et al, ICRA'14]: https://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html\n"
-	@${PRINTF} "   - EuRoC MAV Dataset [Burri et al, IJJR'16]: https://projects.asl.ethz.ch/datasets/doku.php\n"
+	@${PRINTF} "   - TUM RGB-D SLAM dataset [Sturm et al, IROS'12]: https://vision.in.tum.de/data/datasets/rgbd-dataset\n"
+	@${PRINTF} "   - EuRoC MAV Dataset [Burri et al, IJRR'16]: https://projects.asl.ethz.ch/datasets/doku.php\n"
 	@${PRINTF} "   - SVO sample dataset [Forster et al, ICRA 2014]: https://github.com/uzh-rpg/rpg_svo\n"
+	@${PRINTF} "   - Aqualoc dataset [Ferrera et al, IJRR'19]: http://www.lirmm.fr/aqualoc\n"
 	@${PRINTF} "=================================================================================================================\n"
 
 datasetslist:
@@ -319,12 +320,20 @@ datasetslist:
 	@${PRINTF} "make datasets/SVO/artificial.slam\n"
 	@${PRINTF} "\n"
 	@${PRINTF} "\n"
+	@${PRINTF} "### Aqualoc dataset\n"
+	@${PRINTF} "\n"
+	@${PRINTF} "make ./datasets/Aqualoc/initial/sequence_1_no_bag.slam\n"
+	@${PRINTF} "make ./datasets/Aqualoc/initial/sequence_2_no_bag.slam\n"
+	@${PRINTF} "make ./datasets/Aqualoc/initial/sequence_3_no_bag.slam\n"
+	@${PRINTF} "\n"
+	@${PRINTF} "\n"
 	@${PRINTF} "=================================================================================================================\n"
 	@${PRINTF} "If you are using one of those dataset, \033[1;31mplease refer to their respective publications\033[0m:\n"
 	@${PRINTF} "   - TUM RGB-D SLAM dataset [Sturm et al, IROS'12]: https://vision.in.tum.de/data/datasets/rgbd-dataset\n"
 	@${PRINTF} "   - ICL-NUIM dataset [Handa et al, ICRA'14]: https://www.doc.ic.ac.uk/~ahanda/VaFRIC/iclnuim.html\n"
 	@${PRINTF} "   - EuRoC MAV Dataset [Burri et al, IJJR'16]: https://projects.asl.ethz.ch/datasets/doku.php\n"
 	@${PRINTF} "   - SVO sample dataset [Forster et al, ICRA 2014]: https://github.com/uzh-rpg/rpg_svo\n"
+	@${PRINTF} "   - Aqualoc dataset [Ferrera et al, IJRR'19]: http://www.lirmm.fr/aqualoc\n"
 	@${PRINTF} "=================================================================================================================\n"
 
 .PHONY: slambench benchmarks benchmarkslist datasets datasetslist
@@ -351,6 +360,26 @@ datasetslist:
 ./datasets/EuRoCMAV/%.slam :  ./datasets/EuRoCMAV/%.dir 
 	if [ ! -e ./build/bin/dataset-generator ] ; then make slambench ; fi
 	./build/bin/dataset-generator -d eurocmav -i $</mav0 -o $@ -imu true -stereo true -gt true  
+
+#### Aqualoc
+###############
+
+# ./datasets/Aqualoc/Test/InitialData/%.tar.gz :  # Example : $* = sequence_1_no_bag
+# 	cd datasets/Aqualoc/Test 
+# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2Faqualoc_gt_trajectories.tar.gz&dl=1" && tar xzf aqualoc_gt_trajectories.tar.gz
+# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2Faqualoc_imu_cam_calib.txt&dl=1"
+# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2Fcamchain-calib_aqualoc.yaml&dl=1"
+# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2FMPU9250_imu_param.yaml&dl=1"
+# 	mkdir -p $(@D)
+# 	cd $(@D) &&  ${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2F$*.tar.gz&dl=1"
+	
+# ./datasets/Aqualoc/Test/InitialData/%.dir : ./datasets/Aqualoc/Test/InitialData/%.tar.gz
+# 	mkdir $@
+# 	tar xzf $< -d $@
+
+# ./datasets/Aqualoc/Test/InitialData/%.slam :  ./datasets/Aqualoc/Test/InitialData/%.dir 
+# 	if [ ! -e ./build/bin/dataset-generator ] ; then make slambench ; fi,\
+# 	./build/bin/dataset-generator -d aqualoc -idir datasets/AqualocTest/ idata datasets/Aqualoc/Test/$* -o $@   
 
 #### TUM      
 ###############

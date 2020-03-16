@@ -58,6 +58,16 @@ float FixFileInput (std::string input) {
     }
 }
 
+std::string GetFileNumber (std::string input) {
+    //datasets/Aqualoc/sequence_1_no_bag
+    boost::smatch match;
+    if (boost::regex_match(input,match,boost::regex("^.*_sequence_([0-9]+)_raw_data$"))) {
+        // std::cerr << match[1] << std::endl;
+        return match[1];
+    }
+    return "0";
+}
+
 std::string GenerateFrameName (std::string input) {
 
     int len = (int)input.length();
@@ -81,23 +91,45 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
     // test print
     std::cerr << " == Generating Aqualoc File ==" << std::endl;
+    std::cerr << GetFileNumber("datasets/Aqualoc/harbor/harbor_sequence_01_raw_data") << std::endl;
+
 
     // begin by creating a new SLAM file
     slambench::io::SLAMFile *slamfile = new slambench::io::SLAMFile();
 
-	std::string rootFolder = this->aqualocInputDir;
+	
     std::string dataFolder = this->aqualocDatasetFolder;
+    std::string fileNumber = GetFileNumber(dataFolder);
+    std::string dataType = this->aqualocType;
+    std::string rootFolder;
+    std::string camCalibFileName;
+    YAML::Node cam_calib;
+    std::string gtDirFolder;
 
-    // begin by reading the YAML file for the config settings
-	std::string camCalibFileName = rootFolder + "/camchain-calib_aqualoc.yaml";
-	std::string imuCalibFileName = rootFolder + "/MPU9250_imu_param.yaml";
-    YAML::Node cam_calib = YAML::LoadFile(camCalibFileName.c_str());
-    YAML::Node imu_calib = YAML::LoadFile(imuCalibFileName.c_str());
+    if (dataType == "initial") {
+        rootFolder = this->aqualocInputDir + "/" + dataType;
+        std::cerr << rootFolder << std::endl;
+        // begin by reading the YAML file for the config settings
+        camCalibFileName = rootFolder + "/camchain-calib_aqualoc.yaml";
+        std::cerr << camCalibFileName << std::endl;
+        // std::string imuCalibFileName = rootFolder + "/MPU9250_imu_param.yaml";
+        cam_calib = YAML::LoadFile(camCalibFileName.c_str());
+        // YAML::Node imu_calib = YAML::LoadFile(imuCalibFileName.c_str());
+        
+        // individual folders don't have YAML files, so the format will be a little different from EUROCMAV
+        // we read through the csv files in the selected folder/dataset
+        // impt to note that the ground truth trajectories are in a separate folder though
+        gtDirFolder = rootFolder + "/aqualoc_gt_trajectories";
+    } else { // its harbor or archeo and the yaml files are different
+        rootFolder = this->aqualocInputDir + "/" + dataType;
+        std::cerr << rootFolder << std::endl;
+        camCalibFileName = rootFolder + "/" + dataType + "_calibration_files/" + dataType + "_camera_calib.yaml";
+        std::cerr << camCalibFileName << std::endl;
+        cam_calib = YAML::LoadFile(camCalibFileName.c_str());
+        gtDirFolder = rootFolder + "/" + dataType + "_groundtruth_files";
+    }
+
     
-    // individual folders don't have YAML files, so the format will be a little different from EUROCMAV
-    // we read through the csv files in the selected folder/dataset
-    // impt to note that the ground truth trajectories are in a separate folder though
-    std::string gtDirFolder = rootFolder + "/aqualoc_gt_trajectories";
 
 
     // initialise the required sensors
@@ -145,38 +177,38 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
     // here we create an RGB equivalent sensor (with the same settings as the grey sensor)
     
-    slambench::io::CameraSensor *rgbSensor = new slambench::io::CameraSensor("RGB");
+    // slambench::io::CameraSensor *rgbSensor = new slambench::io::CameraSensor("RGB");
 
-    //rgbSensor->Rate = 
-    rgbSensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
-    //rgbSensor->FrameFormat = 
-    rgbSensor->PixelFormat = slambench::io::pixelformat::RGB_III_888;
+    // //rgbSensor->Rate = 
+    // rgbSensor->Description = cam_calib["cam0"]["camera_model"].as<std::string>();
+    // rgbSensor->FrameFormat = slambench::io::frameformat::Raster;
+    // rgbSensor->PixelFormat = slambench::io::pixelformat::RGB_III_888;
     
-    rgbSensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
-    rgbSensor->Height = cam_calib["cam0"]["resolution"][1].as<int>();
-    rgbSensor->Intrinsics[0] = cam_calib["cam0"]["intrinsics"][0].as<float>() / rgbSensor->Width;
-    rgbSensor->Intrinsics[1] = cam_calib["cam0"]["intrinsics"][1].as<float>() / rgbSensor->Height;
-    rgbSensor->Intrinsics[2] = cam_calib["cam0"]["intrinsics"][2].as<float>() / rgbSensor->Width;
-    rgbSensor->Intrinsics[3] = cam_calib["cam0"]["intrinsics"][3].as<float>() / rgbSensor->Height;
+    // rgbSensor->Width = cam_calib["cam0"]["resolution"][0].as<int>();
+    // rgbSensor->Height = cam_calib["cam0"]["resolution"][1].as<int>();
+    // rgbSensor->Intrinsics[0] = cam_calib["cam0"]["intrinsics"][0].as<float>() / rgbSensor->Width;
+    // rgbSensor->Intrinsics[1] = cam_calib["cam0"]["intrinsics"][1].as<float>() / rgbSensor->Height;
+    // rgbSensor->Intrinsics[2] = cam_calib["cam0"]["intrinsics"][2].as<float>() / rgbSensor->Width;
+    // rgbSensor->Intrinsics[3] = cam_calib["cam0"]["intrinsics"][3].as<float>() / rgbSensor->Height;
 
 
-    if (this->dist) {
-        rgbSensor->DistortionType = slambench::io::CameraSensor::distortion_type_t::Equidistant;
+    // if (this->dist) {
+    //     rgbSensor->DistortionType = slambench::io::CameraSensor::distortion_type_t::Equidistant;
 
-        rgbSensor->EquidistantDistortion[0] = cam_calib["cam0"]["distortion_coeffs"][0].as<float>();
-        rgbSensor->EquidistantDistortion[1] = cam_calib["cam0"]["distortion_coeffs"][1].as<float>();
-        rgbSensor->EquidistantDistortion[2] = cam_calib["cam0"]["distortion_coeffs"][2].as<float>();
-        rgbSensor->EquidistantDistortion[3] = cam_calib["cam0"]["distortion_coeffs"][3].as<float>();
-        rgbSensor->EquidistantDistortion[4] = 0;
+    //     rgbSensor->EquidistantDistortion[0] = cam_calib["cam0"]["distortion_coeffs"][0].as<float>();
+    //     rgbSensor->EquidistantDistortion[1] = cam_calib["cam0"]["distortion_coeffs"][1].as<float>();
+    //     rgbSensor->EquidistantDistortion[2] = cam_calib["cam0"]["distortion_coeffs"][2].as<float>();
+    //     rgbSensor->EquidistantDistortion[3] = cam_calib["cam0"]["distortion_coeffs"][3].as<float>();
+    //     rgbSensor->EquidistantDistortion[4] = 0;
 
-    } else if (!this->dist){
-        rgbSensor->DistortionType = slambench::io::CameraSensor::distortion_type_t::NoDistortion;
-    } else {
-        std::cerr << "Unsupported distortion type for Aqualoc." << std::endl;
-        exit(1);
-    }
-    rgbSensor->Index = slamfile->Sensors.size();
-    slamfile->Sensors.AddSensor(rgbSensor);
+    // } else if (!this->dist){
+    //     rgbSensor->DistortionType = slambench::io::CameraSensor::distortion_type_t::NoDistortion;
+    // } else {
+    //     std::cerr << "Unsupported distortion type for Aqualoc." << std::endl;
+    //     exit(1);
+    // }
+    // rgbSensor->Index = slamfile->Sensors.size();
+    // slamfile->Sensors.AddSensor(rgbSensor);
 
     // std::cerr << " Successfully created RGB Sensor " << std::endl;
 
@@ -190,28 +222,77 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
    {
     std::string line;
 	boost::smatch match;
-	std::ifstream infile(dataFolder + "/" + "aqua_img.csv");
+    if (dataType == "initial") {
+	    std::ifstream infile(dataFolder + "/" + "aqua_img.csv");
+        while (std::getline(infile, line)){
 
-	while (std::getline(infile, line)){
+            if (line.size() == 0) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),(.*+)$"))) {
+                // std::cerr << "Reading line from Timestamp CSV File:" << line << std::endl;
+                std::string timestamp = match[1];
+                std::string frameID = match[2];
+                // std::cerr << "the timestamp value is " + timestamp << std::endl;
+                // std::cerr << "the frameID value is " + frameID << std::endl;
+                timestampMap.insert(std::pair<std::string, std::string>(frameID, timestamp));
+                // std::cerr << "Inserted values into map" << std::endl;
 
-		if (line.size() == 0) {
-			continue;
-		} else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
-			continue;
-		} else if (boost::regex_match(line,match,boost::regex("^([0-9]+),(.*+)$"))) {
-            // std::cerr << "Reading line from Timestamp CSV File:" << line << std::endl;
-            std::string timestamp = match[1];
-            std::string frameID = match[2];
-            // std::cerr << "the timestamp value is " + timestamp << std::endl;
-            // std::cerr << "the frameID value is " + frameID << std::endl;
-            timestampMap.insert(std::pair<std::string, std::string>(frameID, timestamp));
-            // std::cerr << "Inserted values into map" << std::endl;
+            } else {
+                std::cerr << "Unknown line:" << line << std::endl;
+            }
 
-		} else {
-			std::cerr << "Unknown line:" << line << std::endl;
-		}
+	    }
+    } else if (dataType == "harbor") {
+        std::string numberType = fileNumber;
+        std::ifstream infile(dataFolder + "/" + "harbor_img_sequence_" + numberType + ".csv");
+        while (std::getline(infile, line)){
 
-	}
+            if (line.size() == 0) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),(.*+)$"))) {
+                // std::cerr << "Reading line from Timestamp CSV File:" << line << std::endl;
+                std::string timestamp = match[1];
+                std::string frameID = match[2];
+                // std::cerr << "the timestamp value is " + timestamp << std::endl;
+                // std::cerr << "the frameID value is " + frameID << std::endl;
+                timestampMap.insert(std::pair<std::string, std::string>(frameID, timestamp));
+                // std::cerr << "Inserted values into map" << std::endl;
+
+            } else {
+                std::cerr << "Unknown line:" << line << std::endl;
+            }
+
+	    }
+    } else { //archaeo
+        std::string numberType = fileNumber;
+        std::ifstream infile(dataFolder + "/" + "img_sequence_" + numberType + ".csv");
+        while (std::getline(infile, line)){
+
+            if (line.size() == 0) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),(.*+)$"))) {
+                // std::cerr << "Reading line from Timestamp CSV File:" << line << std::endl;
+                std::string timestamp = match[1];
+                std::string frameID = match[2];
+                // std::cerr << "the timestamp value is " + timestamp << std::endl;
+                // std::cerr << "the frameID value is " + frameID << std::endl;
+                timestampMap.insert(std::pair<std::string, std::string>(frameID, timestamp));
+                // std::cerr << "Inserted values into map" << std::endl;
+
+            } else {
+                std::cerr << "Unknown line:" << line << std::endl;
+            }
+
+	    }
+    }
+
+	
    }
 
 //     // checking values in map
@@ -230,7 +311,14 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
     // we then load the frames for the RGB and Grey sensors from either the dist or undist,
     // based on what the user has indicated
-    std::string imgFolder = this->dist ? (dataFolder + "/undist_images") : (dataFolder + "/dist_images");
+    std::string imgFolder;
+    if (dataType == "initial") {
+        imgFolder = this->dist ? (dataFolder + "/undist_images") : (dataFolder + "/dist_images");
+    } else if (dataType == "harbor") {
+        imgFolder = dataFolder + "/harbor_images_sequence_" + fileNumber;
+    } else {
+        imgFolder = dataFolder + "/images_sequence_" + fileNumber;
+    }
     // std::cerr << " The IMG Folder used is " + imgFolder << std::endl;
     // DIR *dir = opendir((imgFolder).c_str());
     // dirent *pdir;
@@ -262,23 +350,23 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
         // Add the clone RGB, code is the same as the grey sensor above
 
-        if (this->rgb) {
+        // if (this->rgb) {
 
-            // std::cerr << " Adding RGB Frame " << std::endl;
+        //     // std::cerr << " Adding RGB Frame " << std::endl;
             
-            slambench::io::ImageFileFrame *rgbFrame = new slambench::io::ImageFileFrame();
-            rgbFrame->FrameSensor = rgbSensor;
-            rgbFrame->Filename = imgFolder + "/" + it->first;
-            std::string imgTimestamp = it->second;
-            uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
-            int timestampS  = timestamp / 1000000000;
-            int timestampNS = timestamp % 1000000000;
+        //     slambench::io::ImageFileFrame *rgbFrame = new slambench::io::ImageFileFrame();
+        //     rgbFrame->FrameSensor = rgbSensor;
+        //     rgbFrame->Filename = imgFolder + "/" + it->first;
+        //     std::string imgTimestamp = it->second;
+        //     uint64_t timestamp = strtol(imgTimestamp.c_str(), nullptr, 10);
+        //     int timestampS  = timestamp / 1000000000;
+        //     int timestampNS = timestamp % 1000000000;
 
-            rgbFrame->Timestamp.S  = timestampS;
-            rgbFrame->Timestamp.Ns = timestampNS;
+        //     rgbFrame->Timestamp.S  = timestampS;
+        //     rgbFrame->Timestamp.Ns = timestampNS;
 
-            slamfile->AddFrame(rgbFrame);
-        }
+        //     slamfile->AddFrame(rgbFrame);
+        // }
         it++;
     
     }
@@ -291,88 +379,257 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
 
 	boost::smatch match;
     // std::cerr << " Reading IMU Values from filename: " + dataFolder + "/" + "aqua_imu.csv" << std::endl;
-	std::ifstream infile(dataFolder + "/" + "aqua_imu.csv");
+    if (dataType == "initial") {
+        std::ifstream infile(dataFolder + "/" + "aqua_imu.csv");
 
-	while (std::getline(infile, line)){
+        while (std::getline(infile, line)){
 
-		if (line.size() == 0) {
-			continue;
-		} else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
-			continue;
-		} else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+)$"))) {
+            if (line.size() == 0) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+)$"))) {
 
-			// std::cerr << "Reading line:" << line << std::endl;
-            
-			uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
-			int timestampS  = timestamp / 1000000000;
-			int timestampNS = timestamp % 1000000000;
+                // std::cerr << "Reading line:" << line << std::endl;
+                
+                uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+                int timestampS  = timestamp / 1000000000;
+                int timestampNS = timestamp % 1000000000;
 
-			float wx = std::stof(match[2]) ;  
-			float wy = std::stof(match[3]) ;  
-			float wz = std::stof(match[4]) ;  
+                float wx = std::stof(match[2]) ;  
+                float wy = std::stof(match[3]) ;  
+                float wz = std::stof(match[4]) ;  
 
-			float ax =  std::stof(match[5]); 
-			float ay =  std::stof(match[6]); 
-			float az =  std::stof(match[7]); 
+                float ax =  std::stof(match[5]); 
+                float ay =  std::stof(match[6]); 
+                float az =  std::stof(match[7]); 
 
-			slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
-			IMUFrame->FrameSensor = imuSensor;
-			IMUFrame->Timestamp.S  = timestampS;
-			IMUFrame->Timestamp.Ns = timestampNS;
-			IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+                slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+                IMUFrame->FrameSensor = imuSensor;
+                IMUFrame->Timestamp.S  = timestampS;
+                IMUFrame->Timestamp.Ns = timestampNS;
+                IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
 
-			((float*)IMUFrame->Data)[0] = wx;
-			((float*)IMUFrame->Data)[1] = wy;
-			((float*)IMUFrame->Data)[2] = wz;
+                ((float*)IMUFrame->Data)[0] = wx;
+                ((float*)IMUFrame->Data)[1] = wy;
+                ((float*)IMUFrame->Data)[2] = wz;
 
-			((float*)IMUFrame->Data)[3] = ax;
-			((float*)IMUFrame->Data)[4] = ay;
-			((float*)IMUFrame->Data)[5] = az;
+                ((float*)IMUFrame->Data)[3] = ax;
+                ((float*)IMUFrame->Data)[4] = ay;
+                ((float*)IMUFrame->Data)[5] = az;
 
-			slamfile->AddFrame(IMUFrame);
+                slamfile->AddFrame(IMUFrame);
 
-		} else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+)$"))) {
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+)$"))) {
 
-            // std::cerr << "Caught the regex here: " << line << std::endl;
+                // std::cerr << "Caught the regex here: " << line << std::endl;
 
-            uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
-			int timestampS  = timestamp / 1000000000;
-			int timestampNS = timestamp % 1000000000;
+                uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+                int timestampS  = timestamp / 1000000000;
+                int timestampNS = timestamp % 1000000000;
 
-			float wx = FixFileInput(match[2]) ;  
-			float wy = FixFileInput(match[3]) ;  
-			float wz = FixFileInput(match[4]) ;  
+                float wx = FixFileInput(match[2]) ;  
+                float wy = FixFileInput(match[3]) ;  
+                float wz = FixFileInput(match[4]) ;  
 
-			float ax =  FixFileInput(match[5]); 
-			float ay =  FixFileInput(match[6]); 
-			float az =  FixFileInput(match[7]); 
-            
-            // std::cerr << "Replaced it with: " << wx << " " << wy << " " << wz << " " << ax << " " << ay << " " << az << std::endl;
-
-
-			slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
-			IMUFrame->FrameSensor = imuSensor;
-			IMUFrame->Timestamp.S  = timestampS;
-			IMUFrame->Timestamp.Ns = timestampNS;
-			IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
-
-			((float*)IMUFrame->Data)[0] = wx;
-			((float*)IMUFrame->Data)[1] = wy;
-			((float*)IMUFrame->Data)[2] = wz;
-
-			((float*)IMUFrame->Data)[3] = ax;
-			((float*)IMUFrame->Data)[4] = ay;
-			((float*)IMUFrame->Data)[5] = az;
-
-			slamfile->AddFrame(IMUFrame);
+                float ax =  FixFileInput(match[5]); 
+                float ay =  FixFileInput(match[6]); 
+                float az =  FixFileInput(match[7]); 
+                
+                // std::cerr << "Replaced it with: " << wx << " " << wy << " " << wz << " " << ax << " " << ay << " " << az << std::endl;
 
 
+                slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+                IMUFrame->FrameSensor = imuSensor;
+                IMUFrame->Timestamp.S  = timestampS;
+                IMUFrame->Timestamp.Ns = timestampNS;
+                IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
 
-        } else {
-            std::cerr << "Unknown line:" << line << std::endl;
-		}
+                ((float*)IMUFrame->Data)[0] = wx;
+                ((float*)IMUFrame->Data)[1] = wy;
+                ((float*)IMUFrame->Data)[2] = wz;
 
-	}
+                ((float*)IMUFrame->Data)[3] = ax;
+                ((float*)IMUFrame->Data)[4] = ay;
+                ((float*)IMUFrame->Data)[5] = az;
+
+                slamfile->AddFrame(IMUFrame);
+
+
+
+            } else {
+                std::cerr << "Unknown line:" << line << std::endl;
+            }
+
+        }
+    } else if (dataType == "harbor") {
+        std::ifstream infile(dataFolder + "/harbor_imu_sequence_" + fileNumber + ".csv");
+
+        while (std::getline(infile, line)){
+
+            if (line.size() == 0) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+)$"))) {
+
+                // std::cerr << "Reading line:" << line << std::endl;
+                
+                uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+                int timestampS  = timestamp / 1000000000;
+                int timestampNS = timestamp % 1000000000;
+
+                float wx = std::stof(match[2]) ;  
+                float wy = std::stof(match[3]) ;  
+                float wz = std::stof(match[4]) ;  
+
+                float ax =  std::stof(match[5]); 
+                float ay =  std::stof(match[6]); 
+                float az =  std::stof(match[7]); 
+
+                slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+                IMUFrame->FrameSensor = imuSensor;
+                IMUFrame->Timestamp.S  = timestampS;
+                IMUFrame->Timestamp.Ns = timestampNS;
+                IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+
+                ((float*)IMUFrame->Data)[0] = wx;
+                ((float*)IMUFrame->Data)[1] = wy;
+                ((float*)IMUFrame->Data)[2] = wz;
+
+                ((float*)IMUFrame->Data)[3] = ax;
+                ((float*)IMUFrame->Data)[4] = ay;
+                ((float*)IMUFrame->Data)[5] = az;
+
+                slamfile->AddFrame(IMUFrame);
+
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+)$"))) {
+
+                // std::cerr << "Caught the regex here: " << line << std::endl;
+
+                uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+                int timestampS  = timestamp / 1000000000;
+                int timestampNS = timestamp % 1000000000;
+
+                float wx = FixFileInput(match[2]) ;  
+                float wy = FixFileInput(match[3]) ;  
+                float wz = FixFileInput(match[4]) ;  
+
+                float ax =  FixFileInput(match[5]); 
+                float ay =  FixFileInput(match[6]); 
+                float az =  FixFileInput(match[7]); 
+                
+                // std::cerr << "Replaced it with: " << wx << " " << wy << " " << wz << " " << ax << " " << ay << " " << az << std::endl;
+
+
+                slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+                IMUFrame->FrameSensor = imuSensor;
+                IMUFrame->Timestamp.S  = timestampS;
+                IMUFrame->Timestamp.Ns = timestampNS;
+                IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+
+                ((float*)IMUFrame->Data)[0] = wx;
+                ((float*)IMUFrame->Data)[1] = wy;
+                ((float*)IMUFrame->Data)[2] = wz;
+
+                ((float*)IMUFrame->Data)[3] = ax;
+                ((float*)IMUFrame->Data)[4] = ay;
+                ((float*)IMUFrame->Data)[5] = az;
+
+                slamfile->AddFrame(IMUFrame);
+
+
+
+            } else {
+                std::cerr << "Unknown line:" << line << std::endl;
+            }
+
+        }
+    } else {
+        std::ifstream infile(dataFolder + "/imu_sequence_" + fileNumber + ".csv");
+
+        while (std::getline(infile, line)){
+
+            if (line.size() == 0) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^\\s*#.*$"))) {
+                continue;
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+)$"))) {
+
+                // std::cerr << "Reading line:" << line << std::endl;
+                
+                uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+                int timestampS  = timestamp / 1000000000;
+                int timestampNS = timestamp % 1000000000;
+
+                float wx = std::stof(match[2]) ;  
+                float wy = std::stof(match[3]) ;  
+                float wz = std::stof(match[4]) ;  
+
+                float ax =  std::stof(match[5]); 
+                float ay =  std::stof(match[6]); 
+                float az =  std::stof(match[7]); 
+
+                slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+                IMUFrame->FrameSensor = imuSensor;
+                IMUFrame->Timestamp.S  = timestampS;
+                IMUFrame->Timestamp.Ns = timestampNS;
+                IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+
+                ((float*)IMUFrame->Data)[0] = wx;
+                ((float*)IMUFrame->Data)[1] = wy;
+                ((float*)IMUFrame->Data)[2] = wz;
+
+                ((float*)IMUFrame->Data)[3] = ax;
+                ((float*)IMUFrame->Data)[4] = ay;
+                ((float*)IMUFrame->Data)[5] = az;
+
+                slamfile->AddFrame(IMUFrame);
+
+            } else if (boost::regex_match(line,match,boost::regex("^([0-9]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+),([-0-9.e+]+)$"))) {
+
+                // std::cerr << "Caught the regex here: " << line << std::endl;
+
+                uint64_t timestamp = strtol(std::string(match[1]).c_str(), nullptr, 10);
+                int timestampS  = timestamp / 1000000000;
+                int timestampNS = timestamp % 1000000000;
+
+                float wx = FixFileInput(match[2]) ;  
+                float wy = FixFileInput(match[3]) ;  
+                float wz = FixFileInput(match[4]) ;  
+
+                float ax =  FixFileInput(match[5]); 
+                float ay =  FixFileInput(match[6]); 
+                float az =  FixFileInput(match[7]); 
+                
+                // std::cerr << "Replaced it with: " << wx << " " << wy << " " << wz << " " << ax << " " << ay << " " << az << std::endl;
+
+
+                slambench::io::SLAMInMemoryFrame *IMUFrame = new slambench::io::SLAMInMemoryFrame();
+                IMUFrame->FrameSensor = imuSensor;
+                IMUFrame->Timestamp.S  = timestampS;
+                IMUFrame->Timestamp.Ns = timestampNS;
+                IMUFrame->Data = malloc(imuSensor->GetFrameSize(IMUFrame));
+
+                ((float*)IMUFrame->Data)[0] = wx;
+                ((float*)IMUFrame->Data)[1] = wy;
+                ((float*)IMUFrame->Data)[2] = wz;
+
+                ((float*)IMUFrame->Data)[3] = ax;
+                ((float*)IMUFrame->Data)[4] = ay;
+                ((float*)IMUFrame->Data)[5] = az;
+
+                slamfile->AddFrame(IMUFrame);
+
+
+
+            } else {
+                std::cerr << "Unknown line:" << line << std::endl;
+            }
+
+        }
+    }
+	
 	imuSensor->Index = slamfile->Sensors.size();
     slamfile->Sensors.AddSensor(imuSensor);
 
@@ -391,9 +648,16 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
         boost::regex("[^0-9]*([0-9]+).*"),
         std::string("\\1")
         );
-        
-    std::string fileName = "aqualoc_gt_traj_seq_0" + seqNumber + ".txt"; 
-	std::ifstream inFile(rootFolder + "/aqualoc_gt_trajectories/" + fileName);
+    std::string fileName;
+    if (dataType == "initial") {
+        fileName = rootFolder + "/aqualoc_gt_trajectories/aqualoc_gt_traj_seq_0" + seqNumber + ".txt"; 
+    } else if (dataType == "harbor") {
+        fileName = rootFolder + "/harbor_groundtruth_files/harbor_colmap_traj_sequence_" + fileNumber + ".txt"; 
+    } else {
+        fileName = rootFolder + "/archaeo_groundtruth_files/colmap_traj_sequence_" + fileNumber + ".txt"; 
+    }
+
+	std::ifstream inFile(fileName);
 
     if (!inFile) {
         std::cerr << "Unable to open file " + fileName;
@@ -451,7 +715,7 @@ SLAMFile* AqualocReader::GenerateSLAMFile () {
             std::string modifiedFrame = GenerateFrameName(frameNumber);
             std::string time = timestampMap.find(modifiedFrame)->second; 
             uint64_t timestamp = strtol(time.c_str(), nullptr, 10);
-            
+
             int timestampS  = timestamp / 1000000000;
 			int timestampNS = timestamp % 1000000000;
 

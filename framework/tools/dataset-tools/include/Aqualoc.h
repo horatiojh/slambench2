@@ -29,13 +29,14 @@ namespace io {
 class AqualocReader :  public DatasetReader {
 
 public :
-	std::string aqualocInputDir, aqualocDatasetFolder;
+	std::string aqualocInputDir, aqualocDatasetFolder, aqualocType = "initial";
 	bool grey = true, rgb = true, depth = true, gt = true, imu = true, dist = true; // set the sensor parameters here 
 	bool positive_focal = false;
 
 	AqualocReader (std::string name) : DatasetReader(name) {
 		this->addParameter(TypedParameter<std::string>("idir",     "input-directory",       "path of the Aqualoc dataset directory",   &this->aqualocInputDir, NULL));
 		this->addParameter(TypedParameter<std::string>("idata",     "input-dataset",       "the path of the specific Aqualoc dataset to use",   &this->aqualocDatasetFolder, NULL));
+		this->addParameter(TypedParameter<std::string>("type",     "input-type",       "the type of Aqualoc dataset selected: initial, harbor or archaeo",   &this->aqualocType, NULL));
 		this->addParameter(TypedParameter<bool>("grey",     "grey",       "set to true or false to specify if the grey stream need to be include in the slam file.",   &this->grey, NULL));
 		this->addParameter(TypedParameter<bool>("rgb",     "rgb",       "set to true or false to specify if the RGB stream need to be include in the slam file.",   &this->rgb, NULL));
 		this->addParameter(TypedParameter<bool>("depth",     "depth",       "set to true or false to specify if the DEPTH stream need to be include in the slam file.",   &this->depth, NULL));
@@ -47,11 +48,11 @@ public :
 	SLAMFile* GenerateSLAMFile () ;
 
 private :
+	CameraSensor *grey_sensor =  nullptr;
 	CameraSensor *rgb_sensor = nullptr;
 	DepthSensor *depth_sensor = nullptr;
-	CameraSensor *grey_sensor =  nullptr;
-	GroundTruthSensor *gt_sensor =  nullptr;
 	IMUSensor *imu_sensor =  nullptr;
+	GroundTruthSensor *gt_sensor =  nullptr;
 
 
 };
