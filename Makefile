@@ -322,9 +322,8 @@ datasetslist:
 	@${PRINTF} "\n"
 	@${PRINTF} "### Aqualoc dataset\n"
 	@${PRINTF} "\n"
-	@${PRINTF} "make ./datasets/Aqualoc/initial/sequence_1_no_bag.slam\n"
-	@${PRINTF} "make ./datasets/Aqualoc/initial/sequence_2_no_bag.slam\n"
-	@${PRINTF} "make ./datasets/Aqualoc/initial/sequence_3_no_bag.slam\n"
+	@${PRINTF} "make ./datasets/Aqualoc/archaeo/archaeo_sequence_1_raw_data.slam\n"
+	@${PRINTF} "make ./datasets/Aqualoc/harbor/harbor_sequence_01_raw_data.slam\n"
 	@${PRINTF} "\n"
 	@${PRINTF} "\n"
 	@${PRINTF} "=================================================================================================================\n"
@@ -364,22 +363,29 @@ datasetslist:
 #### Aqualoc
 ###############
 
-# ./datasets/Aqualoc/Test/InitialData/%.tar.gz :  # Example : $* = sequence_1_no_bag
-# 	cd datasets/Aqualoc/Test 
-# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2Faqualoc_gt_trajectories.tar.gz&dl=1" && tar xzf aqualoc_gt_trajectories.tar.gz
-# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2Faqualoc_imu_cam_calib.txt&dl=1"
-# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2Fcamchain-calib_aqualoc.yaml&dl=1"
-# 	${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2FMPU9250_imu_param.yaml&dl=1"
-# 	mkdir -p $(@D)
-# 	cd $(@D) &&  ${WGET} "https://seafile.lirmm.fr/d/30fdf439c96343a3951b/files/?p=%2F$*.tar.gz&dl=1"
-	
-# ./datasets/Aqualoc/Test/InitialData/%.dir : ./datasets/Aqualoc/Test/InitialData/%.tar.gz
-# 	mkdir $@
-# 	tar xzf $< -d $@
+# harbor
 
-# ./datasets/Aqualoc/Test/InitialData/%.slam :  ./datasets/Aqualoc/Test/InitialData/%.dir 
-# 	if [ ! -e ./build/bin/dataset-generator ] ; then make slambench ; fi,\
-# 	./build/bin/dataset-generator -d aqualoc -idir datasets/AqualocTest/ idata datasets/Aqualoc/Test/$* -o $@   
+# archaeological
+
+# data file
+# https://seafile.lirmm.fr/d/79b03788f29148ca84e5/files/?p=%2FArchaeological_site_sequences%2Farchaeo_sequence_1_raw_data.tar.gz&dl=1
+#calib file
+# https://seafile.lirmm.fr/d/79b03788f29148ca84e5/files/?p=%2FHarbor_sites_sequences%2Fharbor_calibration_files%2Fharbor_camera_calib.yaml&dl=1
+# groundtruth file
+# https://seafile.lirmm.fr/d/79b03788f29148ca84e5/files/?p=%2FArchaeological_site_sequences%2Farchaeo_groundtruth_files%2Fcolmap_traj_sequence_1.txt&dl=1
+
+# ./datasets/Aqualoc/archaeo/% :
+# 	mkdir -p ./datasets/Aqualoc/archaeo/
+# 	${WGET} "https://seafile.lirmm.fr/d/79b03788f29148ca84e5/files/?p=%2FArchaeological_site_sequences%2F$*&dl=1" -O $@
+
+# ./datasets/Aqualoc/archaeo/%.dir : ./datasets/Aqualoc/archaeo/camchain-calib_aqualoc.yaml ./datasets/Aqualoc/archaeo/archaeo_groundtruth_files%2Fcolmap_traj_sequence_1.txt ./datasets/Aqualoc/archaeo/archaeo_sequence_1_raw_data.tar.gz
+# 	mkdir -p $@
+# 	cd $@ && tar xzf ../archaeo/$*.tar.gz
+# 	cp ./datasets/Aqualoc/archaeo/archaeo_groundtruth_files%2Fcolmap_traj_sequence_1.txt  ./datasets/Aqualoc/archaeo/camchain-calib_aqualoc.yaml ./datasets/Aqualoc/archaeo/archaeo_sequence_1_raw_data.tar.gz $@
+
+# ./datasets/Aqualoc/archaeo/%.slam : ./datasets/Aqualoc/archaeo/%.dir
+# 	if [ ! -e ./build/bin/dataset-generator ] ; then make slambench ; fi
+# 	./build/bin/dataset-generator -d aqualoc -idir $< -idata $< -o $@
 
 #### TUM      
 ###############
